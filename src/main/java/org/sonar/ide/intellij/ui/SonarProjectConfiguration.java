@@ -8,12 +8,15 @@ import org.sonar.ide.intellij.component.SonarProjectComponent;
 import org.sonar.ide.intellij.component.SonarServiceLocator;
 import org.sonar.wsclient.Host;
 import org.sonar.wsclient.Sonar;
+import org.sonar.wsclient.services.ResourceQuery;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 public class SonarProjectConfiguration extends BaseConfigurable {
   private JPanel pnlMain;
@@ -106,8 +109,35 @@ public class SonarProjectConfiguration extends BaseConfigurable {
     String user = txtUser.getText();
     String password = new String(txtPassword.getPassword());
 
-    Sonar sonar = serviceLocator.getSonar(new Host(host, user, password));
+    final Sonar sonar = serviceLocator.getSonar(new Host(host, user, password));
+    SwingWorker<List<?>, Void> worker = new SwingWorker<List<?>, Void>() {
+
+      @Override
+      protected List<?> doInBackground() throws Exception {
+        ResourceQuery query = new ResourceQuery()
+            .setQualifiers("TRK,BRC")
+            .setDepth(1);
+        return sonar.findAll(query);
+      }
+
+      @Override
+      protected void done() {
+        try {
+          List<?> resources = get();
+          JOptionPane.showMessageDialog(pnlMain, String.format("Test successful (%d resources loaded)", +resources.size()));
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+          JOptionPane.showMessageDialog(pnlMain, "Failed to connect to Sonar: connection thread was interrupted");
+        } catch (ExecutionException e) {
+          e.printStackTrace();
+          JOptionPane.showMessageDialog(pnlMain, "Failed to connect to Sonar: " + e.getMessage());
+        } finally {
+          txtHost.setEnabled(true);
+          txtUser.setEnabled(true);
+          txtPassword.setEnabled(true);
+        }
+      }
+    };
+    worker.execute();
   }
-
-
 }
