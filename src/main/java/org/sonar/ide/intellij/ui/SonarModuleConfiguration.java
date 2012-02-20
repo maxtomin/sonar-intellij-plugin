@@ -8,13 +8,13 @@ import org.apache.commons.lang.StringUtils;
 import org.jdesktop.swingx.JXBusyLabel;
 import org.jetbrains.annotations.Nls;
 import org.sonar.ide.intellij.component.SonarModuleComponent;
+import org.sonar.ide.intellij.component.SonarServiceLocator;
 import org.sonar.ide.intellij.listener.RefreshProjectListListener;
 import org.sonar.ide.intellij.model.ProjectComboBoxModel;
 import org.sonar.ide.intellij.model.SonarProject;
 import org.sonar.ide.intellij.worker.RefreshProjectListWorker;
 import org.sonar.wsclient.Host;
 import org.sonar.wsclient.Sonar;
-import org.sonar.wsclient.connectors.HttpClient4Connector;
 
 import javax.swing.*;
 import java.awt.event.ActionEvent;
@@ -33,10 +33,13 @@ public class SonarModuleConfiguration extends BaseConfigurable implements Refres
   private JComboBox cmbProject;
   private JPanel pnlMain;
   private JXBusyLabel lblRefreshingProjects;
+  private JCheckBox cbUseProjectSettings;
 
   private ProjectComboBoxModel projectComboBoxModel;
 
   private SonarModuleComponent sonarModuleComponent;
+
+  private final SonarServiceLocator serviceLocator = SonarServiceLocator.getInstance();
 
   public SonarModuleConfiguration(Module module) {
     sonarModuleComponent = module.getComponent(SonarModuleComponent.class);
@@ -72,6 +75,7 @@ public class SonarModuleConfiguration extends BaseConfigurable implements Refres
     txtHost.setEnabled(false);
     txtUser.setEnabled(false);
     txtPassword.setEnabled(false);
+    cbUseProjectSettings.setEnabled(false);
     cmbProject.setEnabled(false);
 
     RefreshProjectListWorker refreshProjectListWorker = new RefreshProjectListWorker(this.getSonar());
@@ -91,6 +95,7 @@ public class SonarModuleConfiguration extends BaseConfigurable implements Refres
         txtHost.setEnabled(true);
         txtUser.setEnabled(true);
         txtPassword.setEnabled(true);
+        cbUseProjectSettings.setEnabled(true);
         cmbProject.setEnabled(true);
       }
     });
@@ -123,6 +128,7 @@ public class SonarModuleConfiguration extends BaseConfigurable implements Refres
     sonarModuleComponent.getState().user = txtUser.getText();
     sonarModuleComponent.getState().password = new String(txtPassword.getPassword());
     sonarModuleComponent.getState().projectKey = ((SonarProject) (cmbProject.getSelectedItem())).getResource().getKey();
+    sonarModuleComponent.getState().useProjectHost = cbUseProjectSettings.isSelected();
     sonarModuleComponent.getState().configured = true;
   }
 
@@ -138,7 +144,7 @@ public class SonarModuleConfiguration extends BaseConfigurable implements Refres
     String host = txtHost.getText();
     String user = txtUser.getText();
     String password = new String(txtPassword.getPassword());
-    return new Sonar(new HttpClient4Connector(new Host(host, user, password)));
+    return serviceLocator.getSonar(new Host(host, user, password));
   }
 
 }
